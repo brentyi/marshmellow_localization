@@ -9,6 +9,7 @@ def find_optimal_transform(p, q):
     p_mean = np.mean(p, axis=0)
     q_mean = np.mean(q, axis=0)
 
+    # SVD of covariance
     cov = np.dot((p - p_mean).T, (q - q_mean))
     U, S, VT = np.linalg.svd(cov, full_matrices=True)
 
@@ -16,18 +17,17 @@ def find_optimal_transform(p, q):
     rectify = np.identity(U.shape[0])
     rectify[-1][-1] = np.linalg.det(np.dot(VT.T, U.T))
 
-    # use the SVD to compute R and t
+    # compute R and t
     R = VT.T.dot(rectify).dot(U.T)
     t = q_mean - np.dot(R, p_mean)
 
-    # compute average error
+    # compute maximum error
     error = 0.0
     for pi, qi in zip(p, q):
         qi_pred = np.dot(R, pi) + t
-        error += np.linalg.norm(qi - qi_pred)
-    error /= len(p)
+        error = max(error, np.linalg.norm(qi - qi_pred))
 
-    # matrix => homegeneous matrix => quaternion
+    # R matrix => homogeneous transform => quaternion
     R = np.hstack((R, np.zeros((3, 1))))
     R = np.vstack((R, np.zeros((1, 4))))
     R[-1, -1] = 1.0

@@ -25,7 +25,7 @@ if __name__ == '__main__':
     t = None
     q = None
     error = float('inf')
-    while error > 0.02:
+    while error > 0.005: # this number is probably ambitious
         frames = tl.getFrameStrings()
 
         kinect_tags = get_tag_ids(frames, kinect_frame_prefix)
@@ -36,6 +36,7 @@ if __name__ == '__main__':
 
             sawyer_markers = []
             kinect_markers = []
+
             for tag_id in mutual_tags:
 
                 tag_frame = kinect_frame_prefix + str(tag_id)
@@ -56,8 +57,8 @@ if __name__ == '__main__':
         br.sendTransform(t,
                          q,
                          rospy.Time.now(),
-                         "kinect2_rgb_optical_frame",
-                         "map")
+                         kinect_frame,
+                         root_frame)
         br.sendTransform((0, 0, 0),
                          tf.transformations.quaternion_from_euler(0, 0, 0),
                          rospy.Time.now(),
