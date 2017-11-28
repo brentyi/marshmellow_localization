@@ -1,4 +1,10 @@
 <launch>
+
+    <!-- <node name="kinect_pose_calibration" pkg="marshmellow_localization" type="kinect_calibration.py" output="screen" /> -->
+    <node name="kinect_pose_calibration" pkg="marshmellow_localization" type="kinect_locator.py" output="screen" />
+
+    <include file="$(find kinect2_bridge)/launch/kinect2_bridge.launch" />
+
     <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkers" respawn="false" output="screen" ns="kinect2">
         <param name="marker_size"           type="double" value="4.5" />
         <param name="max_new_marker_error"  type="double" value="0.08" />
@@ -9,10 +15,6 @@
         <remap from="camera_image"  to="/kinect2/hd/points" />
         <remap from="camera_info"   to="/kinect2/hd/camera_info" />
     </node>
-
-    <node name="kinect_pose_calibration" pkg="marshmellow_localization" type="kinect_calibration.py" output="screen" />
-
-    <include file="$(find kinect2_bridge)/launch/kinect2_bridge.launch" />
 
     <!-- <node name="ar_track_alvar_2" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" ns="kinect2_alt"> -->
     <!--     <param name="marker_size"           type="double" value="4.5" /> -->
