@@ -2,6 +2,8 @@
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <boost/lexical_cast.hpp> 
+#include <Eigen/Dense>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/conditional_euclidean_clustering.h>
@@ -36,7 +38,8 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   pcl::VoxelGrid<pcl::PointXYZ> vg;
   vg.setInputCloud(cloud);
   vg.setLeafSize(0.0075, 0.0075, 0.0075);
-  vg.setMinimumPointsNumberPerVoxel(10);
+  //// not support in pcl 1.7.0 :(
+  // vg.setMinimumPointsNumberPerVoxel(10);
   vg.filter(*cloud);
 
   // Planar segmentation
@@ -124,8 +127,8 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   // outrem.setMinNeighborsInRadius(5);
   // outrem.filter(*cloud);
 
-  // static tf::TransformBroadcaster br;
-  // std::string frame = input->header.frame_id;
+  static tf::TransformBroadcaster br;
+  std::string frame = input->header.frame_id;
 
   // Search for marshmallows
   std::vector<pcl::PointIndices> mm_cluster_indices;
@@ -140,13 +143,31 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
     if (mm_cluster_indices[i].indices.size() < 10)
       break;
 
-    pcl::CentroidPoint<pcl::PointXYZ> centroid;
-    for (int j = 0; j < mm_cluster_indices[i].indices.size(); j++) {
-      centroid.add(cloud->points[mm_cluster_indices[i].indices[j]]);
-    }
-    pcl::PointXYZ c;
-    centroid.get(c);
-    std::cout << c.x << "|" << c.y << "|" << c.z << std::endl;
+    Eigen::Vector4f min_pt;
+    Eigen::Vector4f max_pt;
+    pcl::getMinMax3D(*cloud, mm_cluster_indices[i].indices, min_pt, max_pt);
+
+    Eigen::Vector4f center = (min_pt + max_pt) / 2.0;
+    float x = center[0];
+    float y = center[1];
+    float z = center[2];
+    std::cout << x << "|" << y << "|" << z << std::endl;
+
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(x, y, z));
+    tf::Quaternion q;
+    q.setRPY(0, 0, 0);
+    transform.setRotation(q);
+    std::string mm_name = "marshmellow_" + boost::lexical_cast<std::string>(i);
+    br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame, mm_name));
+
+    // pcl::CentroidPoint<pcl::PointXYZ> centroid;
+    // for (int j = 0; j < mm_cluster_indices[i].indices.size(); j++) {
+    //   centroid.add(cloud->points[mm_cluster_indices[i].indices[j]]);
+    // }
+    // pcl::PointXYZ c;
+    // centroid.get(c);
+    // std::cout << c.x << "|" << c.y << "|" << c.z << std::endl;
   }
 
   //Publish the new cloud
