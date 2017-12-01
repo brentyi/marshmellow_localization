@@ -139,6 +139,9 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   mm_ec.setInputCloud(cloud);
   mm_ec.extract(mm_cluster_indices);
 
+  static tf::TransformBroadcaster br;
+  std::string frame = input->header.frame_id;
+
   for (int i=0; i < mm_cluster_indices.size(); i++) {
     if (mm_cluster_indices[i].indices.size() < 10)
       break;
