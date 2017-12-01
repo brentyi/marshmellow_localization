@@ -127,9 +127,6 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   // outrem.setMinNeighborsInRadius(5);
   // outrem.filter(*cloud);
 
-  static tf::TransformBroadcaster br;
-  std::string frame = input->header.frame_id;
-
   // Search for marshmallows
   std::vector<pcl::PointIndices> mm_cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> mm_ec;
