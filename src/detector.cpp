@@ -2,8 +2,7 @@
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <boost/lexical_cast.hpp> 
-#include <Eigen/Dense>
+#include <boost/lexical_cast.hpp>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/segmentation/conditional_euclidean_clustering.h>
@@ -17,7 +16,8 @@
 #include <pcl/filters/project_inliers.h>
 #include <pcl/surface/convex_hull.h>
 #include <pcl/filters/radius_outlier_removal.h>
-#include <pcl/common/centroid.h>
+#include <pcl/registration/distances.h>
+#include <Eigen/Dense>
 
 ros::Publisher pub;
 ros::Publisher coef_pub, ind_pub;
@@ -143,18 +143,33 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
     //if (mm_cluster_indices[i].indices.size() < 30)
     //  break;
 
+    // pcl::PointXYZ min_pt;
+    // pcl::PointXYZ max_pt;
+    // pcl::getMinMax3D(*cloud, mm_cluster_indices[i].indices, min_pt, max_pt);
+    //
+    // float size = pcl::geometry::distance(min_pt, max_pt);
+    // float center_x = (min_pt.x + max_pt.x) / 2.0;
+    // float center_y = (min_pt.y + max_pt.y) / 2.0;
+    // float center_z = (min_pt.z + max_pt.z) / 2.0;
     Eigen::Vector4f min_pt;
     Eigen::Vector4f max_pt;
     pcl::getMinMax3D(*cloud, mm_cluster_indices[i].indices, min_pt, max_pt);
 
+    float size = pcl::distances::l2(min_pt, max_pt);
     Eigen::Vector4f center = (min_pt + max_pt) / 2.0;
-    float x = center[0];
-    float y = center[1];
-    float z = center[2];
-    std::cout << x << "|" << y << "|" << z << std::endl;
+    float center_x = center[0];
+    float center_y = center[1];
+    float center_z = center[2];
+
+    if (size < 0.03 || size > 0.09) {
+      // this is probably not a marshmallow
+      continue;
+    }
+
+    std::cout << "marshmellow_" << i << " size="<< size << " x=" << center_x << " y=" << center_y << "z=" << center_z << std::endl;
 
     tf::Transform transform;
-    transform.setOrigin(tf::Vector3(x, y, z));
+    transform.setOrigin(tf::Vector3(center_x, center_y, center_z));
     tf::Quaternion q;
     q.setRPY(0, 0, 0);
     transform.setRotation(q);
@@ -182,7 +197,7 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
 int main (int argc, char** argv)
 {
   // Initialize ROS
-  ros::init (argc, argv, "new_tuto");
+  ros::init (argc, argv, "marshmallow_detector");
   ros::NodeHandle nh;
 
   // Create a ROS subscriber for the input point cloud

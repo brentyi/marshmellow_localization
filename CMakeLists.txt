@@ -18,8 +18,8 @@ catkin_package(
 #    INCLUDE_DIRS include
 )
 
-add_executable(filter src/filter.cpp)
-target_link_libraries(filter
+add_executable(detector src/detector.cpp)
+target_link_libraries(detector
   ${catkin_LIBRARIES}
 )
 
