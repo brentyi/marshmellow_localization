@@ -18,6 +18,7 @@
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/registration/distances.h>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 ros::Publisher pub;
 ros::Publisher coef_pub, ind_pub;
@@ -43,26 +44,26 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   vg.filter(*cloud);
 
   // Planar segmentation
-  pcl::SACSegmentation<pcl::PointXYZ> seg;
-  pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-  pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+  pcl::SACSegmentation<pcl::PointXYZ> table_seg;
+  pcl::ModelCoefficients::Ptr table_coefficients(new pcl::ModelCoefficients);
+  pcl::PointIndices::Ptr table_inliers(new pcl::PointIndices());
 
-  seg.setModelType(pcl::SACMODEL_PLANE);
-  seg.setMethodType(pcl::SAC_RANSAC);
-  seg.setOptimizeCoefficients(true);
-  seg.setMaxIterations(1000);
-  seg.setDistanceThreshold(0.02);
+  table_seg.setModelType(pcl::SACMODEL_PLANE);
+  table_seg.setMethodType(pcl::SAC_RANSAC);
+  table_seg.setOptimizeCoefficients(true);
+  table_seg.setMaxIterations(1000);
+  table_seg.setDistanceThreshold(0.02);
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_table(new pcl::PointCloud<pcl::PointXYZ> ());
 
   // Segment the largest planar component from the remaining cloud
-  seg.setInputCloud (cloud);
-  seg.segment (*inliers, *coefficients);
+  table_seg.setInputCloud (cloud);
+  table_seg.segment (*table_inliers, *table_coefficients);
 
   // Extract the planar inliers from the input cloud
   pcl::ExtractIndices<pcl::PointXYZ> extract;
   extract.setInputCloud (cloud);
-  extract.setIndices (inliers);
+  extract.setIndices (table_inliers);
   extract.setNegative (false);
   extract.filter (*cloud_table);
   std::cout << "PointCloud representing the planar component: " << cloud_table->points.size () << " data points." << std::endl;
@@ -99,7 +100,7 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   pcl::ProjectInliers<pcl::PointXYZ> proj;
   proj.setModelType(pcl::SACMODEL_PLANE);
   proj.setInputCloud(cloud_table);
-  proj.setModelCoefficients (coefficients);
+  proj.setModelCoefficients (table_coefficients);
   proj.filter (*cloud_projected);
 
   // Isolate objects on the table
@@ -113,10 +114,10 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   prism.setInputCloud(cloud);
   prism.setInputPlanarHull(cloud_hull);
   prism.setHeightLimits(0, 0.1);
-  prism.segment(*inliers);
+  prism.segment(*table_inliers);
 
   extract.setInputCloud (cloud);
-  extract.setIndices (inliers);
+  extract.setIndices (table_inliers);
   extract.setNegative (false);
   extract.filter (*cloud);
 
@@ -168,11 +169,42 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
 
     std::cout << "marshmellow_" << i << " size="<< size << " x=" << center_x << " y=" << center_y << "z=" << center_z << std::endl;
 
+    pcl::PointIndices::Ptr mm_indices(&mm_cluster_indices[i]);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mm(new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    extract.setInputCloud(cloud);
+    extract.setIndices(mm_indices);
+    extract.setNegative(false);
+    extract.filter(*cloud_mm);
+
+    pcl::ModelCoefficients::Ptr mm_coefficients (new pcl::ModelCoefficients);
+    pcl::PointIndices::Ptr mm_inliers (new pcl::PointIndices);
+    pcl::SACSegmentation<pcl::PointXYZ> mm_seg;
+    mm_seg.setOptimizeCoefficients (true);
+    mm_seg.setModelType (pcl::SACMODEL_PLANE);
+    mm_seg.setMethodType (pcl::SAC_RANSAC);
+    mm_seg.setDistanceThreshold (0.01);
+
+    mm_seg.setInputCloud (cloud_mm);
+    mm_seg.segment (*mm_inliers, *mm_coefficients);
+
+    Eigen::Quaternionf q;
+    if (mm_inliers->indices.size () > 0)
+    {
+      Eigen::Vector3f a(0, 0, 1);
+      Eigen::Vector3f b(mm_coefficients->values[0], mm_coefficients->values[1], mm_coefficients->values[2]);
+      q.setFromTwoVectors(a, b);
+    } else {
+      Eigen::Vector3f a(0, 0, 1);
+      Eigen::Vector3f b(table_coefficients->values[0], table_coefficients->values[1], table_coefficients->values[2]);
+      q.setFromTwoVectors(a, b);
+    }
+
     tf::Transform transform;
+    tf::Quaternion tf_q(q.x(), q.y(), q.z(), q.w());
+    // tf_q.setRPY(0, 0, 0);
     transform.setOrigin(tf::Vector3(center_x, center_y, center_z));
-    tf::Quaternion q;
-    q.setRPY(0, 0, 0);
-    transform.setRotation(q);
+    transform.setRotation(tf_q);
     std::string mm_name = "marshmellow_" + boost::lexical_cast<std::string>(i);
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), frame, mm_name));
 
