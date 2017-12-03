@@ -36,10 +36,12 @@ def find_optimal_transform(p, q):
     return t, q, error
 
 if __name__ == "__main__":
-    post = np.array([[0., 10., 0.],
-                        [5., 0., 5.],
-                        [0., 0., 10.],
-                        [10., 0., 0.]])
+    post = np.random.normal(size=(5, 3))
+    print post
+    #post = np.array([[0., 10., 0.],
+    #                    [5., 0., 5.],
+    #                    [0., 0., 10.],
+    #                    [10., 0., 0.]])
 
     R = np.array([[ -0.1455000, 0.9893582, -0.0000000],\
         [-0.4196650, -0.0617181, 0.9055784],\
@@ -48,5 +50,7 @@ if __name__ == "__main__":
     pre = np.dot(R.T, (post - t).T).T
 
     t, q, error = find_optimal_transform(pre, post)
+
+    print error
     print R
     print transformations.quaternion_matrix(q)

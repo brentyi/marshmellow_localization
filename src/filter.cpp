@@ -130,8 +130,8 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   // Search for marshmallows
   std::vector<pcl::PointIndices> mm_cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> mm_ec;
-  mm_ec.setClusterTolerance(0.02); // 2cm
-  mm_ec.setMinClusterSize(20);
+  mm_ec.setClusterTolerance(0.015); // 2cm
+  mm_ec.setMinClusterSize(40);
   mm_ec.setMaxClusterSize(1000);
   mm_ec.setInputCloud(cloud);
   mm_ec.extract(mm_cluster_indices);
@@ -140,8 +140,8 @@ void cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input){
   std::string frame = input->header.frame_id;
 
   for (int i=0; i < mm_cluster_indices.size(); i++) {
-    if (mm_cluster_indices[i].indices.size() < 10)
-      break;
+    //if (mm_cluster_indices[i].indices.size() < 30)
+    //  break;
 
     Eigen::Vector4f min_pt;
     Eigen::Vector4f max_pt;
